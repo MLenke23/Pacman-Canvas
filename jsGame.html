@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<style>
+canvas {
+    border: 1px solid #d3d3d3;
+    background-color: black;
+}
+</style>
+</head>
+<body onload="startGame()">
+<script>
+
+var myGamePiece;
+var GAMap=[];
+var GABall=[];
+var sceneWidth=488;
+var sceneHeight=267;//270
+var Directions=['up','right','down','left'];
+var StopAll=false;
+
+var GMapHorizBlock=[//vert
+  [0,0,0,0,0,0,0,1,0,0,0,0,0],
+  [0,0,0,0,0,0,0,1,0,0,0,1,0],
+  [0,1,0,0,0,0,0,1,1,0,1,1,1],
+  [0,1,1,0,0,0,0,0,1,0,1,1,1],
+  [0,0,0,0,0,0,1,1,0,0,0,0,1],
+  [0,1,0,0,0,1,1,1,0,0,0,0,1],
+  [0,0,0,0,0,1,0,1,0,0,0,0,0]
+];
+
+var GMapVertBlock=[//horizont
+  [0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,1,1,1,1,1,0,0,1,1,1,1,0],
+  [0,1,1,0,1,1,0,0,1,0,0,0,0],
+  [0,0,1,1,1,1,0,0,0,1,0,0,0],
+  [0,0,0,1,1,1,0,0,1,0,0,0,0],
+  [0,0,1,1,1,0,0,1,1,1,1,0,0],
+  [0,1,1,1,0,0,0,0,1,1,1,1,0]
+];
+
+
+
+function startGame() {
+   
+   var dist=30;
+
+    GPacMan = new component(30, 30, "pacman", 21, 170);
+    GPhantom = new component(30, 30, "phantom",21*16, 170);
+    GPhantom2 = new component(30, 30, "phantom2",21*5, 60);
+
+    GAMap.push(new component(sceneWidth,7, "map", 0, 0));
+    GAMap.push(new component(7,sceneHeight, "map", 0, 0));
+    GAMap.push(new component(7,sceneHeight, "map", sceneWidth-7, 0));
+    GAMap.push(new component(sceneWidth,7, "map", 0, sceneHeight-7));
+
+    for (let i = 0; i < 13; i++) {//7
+      for (let j = 1; j < 7; j++){//13
+      //console.log("dg: "+i+"/"+GMapVertBlock[j][i]);
+        if(GMapVertBlock[j][i]==1)
+          GAMap.push(new component(dist+14,6, "map", 7*i+dist*i, (7*(j+1)+dist*j)-7));//7
+      }
+      // GAMap.push(new component(7,dist+7, "map", 7*i+dist*i, 7*j+dist*j));
+    }
+
+    for (let i = 0; i < 7; i++) {
+      for (let j = 1; j < 13; j++){
+        if(GMapHorizBlock[i][j]==1)
+          GAMap.push(new component(7,dist+13, "map", 7*j+dist*j, 7*(i)+dist*i));
+      }
+    }
+
+    for(var i=0;i<13;i++){
+      for(var j=0;j<7;j++){
+        GABall.push(new component(7,7, "ball", 22+i*37, 23+j*37));
+      }
+    }
+    myGameArea.start();
+   
+}
+
+var myGameArea = {
+    canvas : document.createElement("canvas"),
+    start : function() {
+        this.canvas.width = sceneWidth;
+        this.canvas.height = sceneHeight;
+        this.context = this.canvas.getContext("2d");
+        document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+        setInterval(UpdateGame,20);
+    }
+}
+document.addEventListener('keydown', function(e){
+
+  if(e.keyCode==40){
+    GPacMan.nextDir='down';
+    // GPacMan.dir='down';
+    // GPacMan.speedX=0;
+    // GPacMan.speedY=GPacMan.speed;
+  }else
+  if(e.keyCode==37){
+    GPacMan.nextDir='left';
+    // GPacMan.dir='left';
+    // GPacMan.speedX=GPacMan.speed*-1;
+    // GPacMan.speedY=0;
+  }else
+  if(e.keyCode==38){
+    GPacMan.nextDir='up';
+    // GPacMan.dir='up';
+    // GPacMan.speedX=0;
+    // GPacMan.speedY=GPacMan.speed*-1;
+  }else
+  if(e.keyCode==39){
+    GPacMan.nextDir='right';
+    // GPacMan.dir='right';
+    // GPacMan.speedX=GPacMan.speed;
+    // GPacMan.speedY=0;
+  }
+
+});
+
+function UpdateGame(){
+  ctx= myGameArea.context;
+  ctx.clearRect(0, 0, sceneWidth,sceneHeight);
+  pacmanAnimDraw();
+  if(!StopAll){
+    GPacMan.update();
+  for(var i=0;i<GAMap.length;i++){
+    if(GPacMan.crashWith(GAMap[i])){
+     GPacMan.stopMove();
+    } 
+    GAMap[i].update();
+  }
+  for(var i=0;i<GABall.length;i++){
+    GABall[i].update();
+    if(GPacMan.crashWith(GABall[i])){
+      console.log("tcoin");
+      GABall.splice(i,1);
+    }
+  }
+  if(GPacMan.crashWithPhantom(GPhantom) || GPacMan.crashWithPhantom(GPhantom2)){
+      console.log("GAMEOVER");
+      StopAll=true;
+      location.reload();
+  }
+ 
+  GPacMan.checkNextDir();
+
+  GPhantom.update();
+  GPhantom2.update();
+  for(var i=0;i<GAMap.length;i++){
+    if(GPhantom.crashWith(GAMap[i])){
+      GPhantom.stopMove();
+    } 
+    if(GPhantom2.crashWith(GAMap[i])){
+       GPhantom2.stopMove();
+    } 
+  }
+  GPhantom.checkNextDir();
+  GPhantom2.checkNextDir();
+  
+ 
+  }
+
+ 
+}
+function mapDraw(w,h,x,y){
+  ctx= myGameArea.context;
+  ctx.fillStyle = "blue";
+  ctx.fillRect(w, h,x,y);
+}
+function ballDraw(x,y,w,h){
+  ctx= myGameArea.context;
+  ctx.beginPath();
+ ctx.fillStyle = "yellow";
+  // ctx.fillRect(x,y,w,h);
+ ctx.arc(x, y, w-3, 0, 2*Math.PI, false);
+ ctx.fill();
+  //ctx.fillRect(w, h,x,y);
+}
+var animPhantom=5;
+var reverseAnimPhantom=false;
+function phantomDraw(x,y,type=1){
+    ctx= myGameArea.context;
+    if(type==1)
+      ctx.fillStyle = 'red';
+    else
+      ctx.fillStyle = "#00cc00";
+    dzplX=-75+x-10-10;
+    dzplY=-80+y+32-53;
+
+//var moveUP=1;
+  ctx.beginPath();
+    ctx.moveTo(83+dzplX, 116+dzplY);
+    ctx.lineTo(83+dzplX, 102+dzplY);
+    ctx.bezierCurveTo(83+dzplX, 94+dzplY, 89+dzplX, 88+dzplY, 97+dzplX, 88+dzplY);
+     ctx.bezierCurveTo(105+dzplX, 88+dzplY, 111+dzplX, 94+dzplY, 111+dzplX, 102+dzplY);
+     ctx.lineTo(111+dzplX, 116+dzplY);
+     ctx.lineTo(106.333+dzplX, 111.333+dzplY);//+moveUP);
+     ctx.lineTo(101.666+dzplX, 116+dzplY);
+     ctx.lineTo(97+dzplX, 111.333+dzplY);
+     ctx.lineTo(92.333+dzplX, 116+dzplY);
+     ctx.lineTo(87.666+dzplX, 111.333+dzplY);
+     ctx.lineTo(83+dzplX, 116+dzplY);
+    ctx.fill();
+  
+  ctx.fillStyle = 'white';
+    ctx.beginPath();
+    ctx.moveTo(91+dzplX, 96+dzplY);
+    ctx.bezierCurveTo(88+dzplX, 96+dzplY, 87+dzplX, 99+dzplY, 87+dzplX, 101+dzplY);
+    ctx.bezierCurveTo(87+dzplX, 103+dzplY, 88+dzplX, 106+dzplY, 91+dzplX, 106+dzplY);
+    ctx.bezierCurveTo(94+dzplX, 106+dzplY, 95+dzplX, 103+dzplY, 95+dzplX, 101+dzplY);
+    ctx.bezierCurveTo(95+dzplX, 99+dzplY, 94+dzplX, 96+dzplY, 91+dzplX, 96+dzplY);
+    ctx.moveTo(103+dzplX, 96+dzplY);
+    ctx.bezierCurveTo(100+dzplX, 96+dzplY, 99+dzplX, 99+dzplY, 99+dzplX, 101+dzplY);
+    ctx.bezierCurveTo(99+dzplX, 103+dzplY, 100+dzplX, 106+dzplY, 103+dzplX, 106+dzplY);
+    ctx.bezierCurveTo(106+dzplX, 106+dzplY, 107+dzplX, 103+dzplY, 107+dzplX, 101+dzplY);
+    ctx.bezierCurveTo(107+dzplX, 99+dzplY, 106+dzplX, 96+dzplY, 103+dzplX, 96+dzplY);
+    ctx.fill();
+
+    ctx.fillStyle = 'black';
+    ctx.beginPath();
+    ctx.arc(101+dzplX, 102+dzplY, 2, 0, Math.PI * 2, true);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(89+dzplX, 102+dzplY, 2, 0, Math.PI * 2, true);
+  
+    ctx.fill();
+    ctx.closePath();
+}
+var animPacMan=5;
+var reverseAnimPacman=false;
+function pacmanAnimDraw(){
+    ctx= myGameArea.context;
+    ctx.fillStyle = 'yellow';
+    ctx.beginPath();
+
+    if(GPacMan.dir=='right'){
+      ctx.arc(GPacMan.x, GPacMan.y, 13, Math.PI / animPacMan, -Math.PI / animPacMan, false);
+      ctx.lineTo(GPacMan.x-4, GPacMan.y-1);
+    }else
+    if(GPacMan.dir=='left'){
+      ctx.arc(GPacMan.x, GPacMan.y, 13, (Math.PI / animPacMan)+Math.PI,(-Math.PI / animPacMan)+Math.PI, false);
+      ctx.lineTo(GPacMan.x+4, GPacMan.y-1);
+    }else
+    if(GPacMan.dir=='down'){
+      ctx.arc(GPacMan.x, GPacMan.y, 13, (Math.PI / animPacMan)+Math.PI/2,(-Math.PI / animPacMan)+Math.PI/2, false);
+      ctx.lineTo(GPacMan.x, GPacMan.y-4);
+    }else
+    if(GPacMan.dir=='up'){
+      ctx.arc(GPacMan.x, GPacMan.y, 13, (Math.PI / animPacMan)-Math.PI/2,(-Math.PI / animPacMan)-Math.PI/2, false);
+      ctx.lineTo(GPacMan.x, GPacMan.y+4);
+    }else
+    if(GPacMan.dir=='none'){
+      
+        if(GPacMan.lastDir=='right'){
+        ctx.arc(GPacMan.x, GPacMan.y, 13, Math.PI / 7, -Math.PI / 7, false);
+        ctx.lineTo(GPacMan.x-4, GPacMan.y-1);
+        }else
+        if(GPacMan.lastDir=='left'){
+          ctx.arc(GPacMan.x, GPacMan.y, 13, (Math.PI / 7)+Math.PI,(-Math.PI / 7)+Math.PI, false);
+          ctx.lineTo(GPacMan.x+4, GPacMan.y-1);
+        }else
+        if(GPacMan.lastDir=='down'){
+          ctx.arc(GPacMan.x, GPacMan.y, 13, (Math.PI / 7)+Math.PI/2,(-Math.PI / 7)+Math.PI/2, false);
+          ctx.lineTo(GPacMan.x, GPacMan.y-4);
+        }else
+        if(GPacMan.lastDir=='up'){
+          ctx.arc(GPacMan.x, GPacMan.y, 13, (Math.PI / 7)-Math.PI/2,(-Math.PI / 7)-Math.PI/2, false);
+          ctx.lineTo(GPacMan.x, GPacMan.y+4);
+        }
+    }
+
+    
+    ctx.fill();
+    
+    ctx.closePath();
+    if(!reverseAnimPacman)
+        animPacMan+=1;
+    else
+        animPacMan-=1;
+    if(animPacMan>12)
+        reverseAnimPacman=true;
+    if(animPacMan<5)
+        reverseAnimPacman=false;
+}
+function pacmanMove(x,y){
+  if( GPacMan.y>300){//calcular error
+    GPacMan.y=-50;
+   // ctx.translate(0,-350);
+  }else
+  if( GPacMan.y<-50){//calcular error
+    GPacMan.y=300;
+  //  ctx.translate(0,+350);
+  }else
+  if( GPacMan.x>530){//calcular error
+    // var dError=(530-pacmanPosX);
+    GPacMan.x=-50+(GPacMan.x-530);
+   // ctx.translate(-580,0);
+  }else
+  if( GPacMan.x<-50){//calcular error
+    GPacMan.x=530;
+   // ctx.translate(+580,0);
+  }else
+  {
+   // ctx.translate(x,y);
+    GPacMan.x+=x;
+    GPacMan.y+=y;//pacmanPosX+=x;
+    //pacmanPosY+=y;
+  }
+}
+function phantomMove(x,y){
+  if( GPhantom.y>300){//calcular error
+    GPhantom.y=-50;
+   // ctx.translate(0,-350);
+  }else
+  if( GPhantom.y<-50){//calcular error
+    GPhantom.y=300;
+  //  ctx.translate(0,+350);
+  }else
+  if( GPhantom.x>530){//calcular error
+    // var dError=(530-pacmanPosX);
+    GPhantom.x=-50+(GPhantom.x-530);
+   // ctx.translate(-580,0);
+  }else
+  if( GPhantom.x<-50){//calcular error
+    GPhantom.x=530;
+   // ctx.translate(+580,0);
+  }else
+  {
+   // ctx.translate(x,y);
+   GPhantom.x+=x;
+   GPhantom.y+=y;//pacmanPosX+=x;
+   if(GPhantom.changeDir==true){
+    GPhantom.changeDir=false;
+    GPhantom.nextDir=ChangePhantomDirStop(GPhantom.lastDir);
+   }
+   //GPhantom.nextDir=ChangePhantomDirStop(GPhantom.lastDir);
+    //pacmanPosY+=y;
+  }
+}
+function phantom2Move(x,y){
+  if( GPhantom2.y>300){//calcular error
+    GPhantom2.y=-50;
+   // ctx.translate(0,-350);
+  }else
+  if( GPhantom2.y<-50){//calcular error
+    GPhantom2.y=300;
+  //  ctx.translate(0,+350);
+  }else
+  if( GPhantom2.x>530){//calcular error
+    // var dError=(530-pacmanPosX);
+    GPhantom2.x=-50+(GPhantom2.x-530);
+   // ctx.translate(-580,0);
+  }else
+  if( GPhantom2.x<-50){//calcular error
+    GPhantom2.x=530;
+   // ctx.translate(+580,0);
+  }else
+  {
+   // ctx.translate(x,y);
+   GPhantom2.x+=x;
+   GPhantom2.y+=y;//pacmanPosX+=x;
+   if(GPhantom2.changeDir==true){
+    GPhantom2.changeDir=false;
+    GPhantom2.nextDir=ChangePhantomDirStop(GPhantom2.lastDir);
+   }
+   //GPhantom.nextDir=ChangePhantomDirStop(GPhantom.lastDir);
+    //pacmanPosY+=y;
+  }
+}
+
+function component(width, height, type, x, y) {
+    this.width = width;
+    this.height = height;
+    this.speedX = 0;
+    this.speedY = 2;    
+    this.x = x;
+    this.y = y;
+    this.type=type;
+    this.speed=2;
+    this.dir='right';
+    this.lastDir='none';
+    this.nextDir='none';
+    this.changeDir=false;
+    this.update = function() {
+        ctx = myGameArea.context;
+       
+        if(type=='pacman'){
+          ctx.beginPath();
+          pacmanMove(this.speedX,this.speedY);
+          ctx.closePath();
+        }else
+        if(type=='phantom'){
+          ctx.beginPath();
+          phantomMove(this.speedX,this.speedY);
+          phantomDraw(this.x,this.y);
+          ctx.closePath();
+        }
+        else
+        if(type=='phantom2'){
+          ctx.beginPath();
+          phantom2Move(this.speedX,this.speedY);
+          phantomDraw(this.x,this.y,2);
+          ctx.closePath();
+        }else
+        if(type=='map'){
+          ctx.beginPath();
+          mapDraw(this.x,this.y,this.width,this.height);
+          ctx.closePath();
+        }else
+        if(type=='ball'){
+          ctx.beginPath();
+          ballDraw(this.x,this.y,this.width,this.height);
+          ctx.closePath();
+        }
+    }
+    this.newPos = function() {
+        this.x += this.speedX;
+        this.y += this.speedY;        
+    }
+    this.crashWith = function(otherobj) {
+      var margen=11;
+      var myleft = this.x-margen-1;
+      var myright = this.x-margen-4 + (this.width);
+      var mytop = this.y-margen-3;
+      var mybottom = this.y-margen-5 + (this.height);
+      var otherleft = otherobj.x;
+      var otherright = otherobj.x + (otherobj.width);
+      var othertop = otherobj.y;
+      var otherbottom = otherobj.y + (otherobj.height);
+      var crash = true;
+      if ((mybottom < othertop) ||
+        (mytop > otherbottom) ||
+        (myright < otherleft) ||
+        (myleft > otherright)) {
+          crash = false;
+      }
+      return crash; 
+    }
+    this.crashWithPhantom = function(otherobj) {
+      var margen=11;
+      var myleft = this.x-margen-1+20;
+      var myright = this.x-margen-4 + (this.width);
+      var mytop = this.y-margen-3+20;
+      var mybottom = this.y-margen-5 + (this.height);
+      var otherleft = otherobj.x;
+      var otherright = otherobj.x + (otherobj.width);
+      var othertop = otherobj.y;
+      var otherbottom = otherobj.y + (otherobj.height);
+      var crash = true;
+      if ((mybottom < othertop) ||
+        (mytop > otherbottom) ||
+        (myright < otherleft) ||
+        (myleft > otherright)) {
+          crash = false;
+      }
+      return crash; 
+    }
+    this.stopMove=function(){
+     
+      if(type=='pacman'){
+        if(this.dir!='none')
+          this.lastDir=this.dir;
+        this.dir='none';
+        pacmanMove(this.speedX*-1,this.speedY*-1);
+      }else
+      if(type=='phantom'){
+        if(this.dir!='none')
+          this.lastDir=this.dir;
+        this.dir='none';
+        this.nextDir=ChangePhantomDirStop(this.lastDir);
+        //this.nextDir=Directions[Math.floor(Math.random() * 4)];
+        //console.log(this.nextDir);
+        phantomMove(this.speedX*-1,this.speedY*-1);
+        this.changeDir=true;
+      }else
+      if(type=='phantom2'){
+        if(this.dir!='none')
+          this.lastDir=this.dir;
+        this.dir='none';
+        this.nextDir=ChangePhantomDirStop(this.lastDir);
+        //this.nextDir=Directions[Math.floor(Math.random() * 4)];
+        //console.log(this.nextDir);
+        phantom2Move(this.speedX*-1,this.speedY*-1);
+        this.changeDir=true;
+      }
+
+    }
+    this.checkNextDir=function(){
+      if(this.nextDir=='right'){
+        //if(type=='pacman'){
+          ctx.beginPath();
+          this.x+=this.speed;
+          var toch=false;
+          for(var i=0;i<GAMap.length;i++){
+            if(this.crashWith(GAMap[i])){
+              toch=true;
+            }
+          }
+          this.x-=this.speed;
+          if(!toch){
+          
+            this.dir='right';
+            this.speedX=this.speed;
+            this.speedY=0;
+          }
+          ctx.closePath();
+        //}
+      }else
+      if(this.nextDir=='up'){
+       // if(type=='pacman'){
+          ctx.beginPath();
+          this.y-=this.speed;
+          var toch=false;
+          for(var i=0;i<GAMap.length;i++){
+            if(this.crashWith(GAMap[i])){
+              toch=true;
+            }
+          }
+          this.y+=this.speed;
+          if(!toch){
+            //console.log("passs up")
+             this.dir='up';
+             this.speedX=0;
+             this.speedY=-this.speed;
+          }
+          ctx.closePath();
+       // }
+      }else
+      if(this.nextDir=='down'){
+       // if(type=='pacman'){
+          ctx.beginPath();
+          this.y+=this.speed;
+          var toch=false;
+          for(var i=0;i<GAMap.length;i++){
+            if(this.crashWith(GAMap[i])){
+              toch=true;
+            }
+          }
+          this.y-=this.speed;
+          if(!toch){
+            //console.log("passs down")
+             this.dir='down';
+             this.speedX=0;
+             this.speedY=this.speed;
+          }
+          ctx.closePath();
+     //   }
+      }else
+      if(this.nextDir=='left'){
+        //if(type=='pacman'){
+          ctx.beginPath();
+          this.x-=this.speed;
+          var toch=false;
+          for(var i=0;i<GAMap.length;i++){
+            if(this.crashWith(GAMap[i])){
+              toch=true;
+            }
+          }
+          this.x+=this.speed;
+          if(!toch){
+            //console.log("passs left")
+             this.dir='left';
+             this.speedX=-this.speed;
+             this.speedY=0;
+          }
+          ctx.closePath();
+       // }
+      }
+    }
+    
+}
+
+function ChangePhantomDirStop(actDir){
+  var val='';
+  var rnd=Math.random();
+  if(actDir=='up'){
+    if(rnd<.45)
+      val='left'
+    else
+    if(rnd<.90)
+      val='right'
+    else
+      val='down'
+  }else
+  if(actDir=='down'){
+    if(rnd<.45)
+      val='left'
+    else
+    if(rnd<.9)
+      val='right'
+    else
+      val='up'
+  }else
+  if(actDir=='right'){
+    if(rnd<.45)
+      val='up'
+    else
+    if(rnd<.9)
+      val='down'
+    else
+      val='left'
+  }else
+  if(actDir=='left'){
+    if(rnd<.45)
+      val='up'
+    else
+    if(rnd<.9)
+      val='down'
+    else
+      val='right'
+  }
+
+  return val;
+
+}
+
+function FollowPhantomDir(actDir){
+  var val='up';
+  var rnd=Math.random();
+
+  var distX=GPacMan.x-GPhantom.x;
+  var distY=GPacMan.y-GPhantom.y;
+  if(actDir=='up'){
+    if(rnd<.8){
+      if(distX>0)
+        val='right'
+      else
+        val='left'
+    }else
+      val='down'
+  }else
+  if(actDir=='down'){
+    if(rnd<.8){
+      if(distX>0)
+        val='right'
+      else
+        val='left'
+    }else
+      val='up'
+  }else
+  if(actDir=='right'){
+    if(rnd<.8){
+      if(distY>0)
+        val='up'
+      else
+        val='down'
+    }else
+      val='left'
+  }else
+  if(actDir=='left'){
+    if(rnd<.8){
+      if(distY>0)
+        val='up'
+      else
+        val='down'
+    }else
+      val='right'
+  }
+
+  return val;
+
+}
+
+</script>
+
+</body>
+</html>
